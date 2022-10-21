@@ -1,17 +1,14 @@
+/* eslint-disable prefer-destructuring */
+/* eslint-disable no-plusplus */
+/* eslint-disable no-await-in-loop */
 /* eslint global-require: off, no-console: off, promise/always-return: off */
 
-/**
- * This module executes inside of electron's main process. You can start
- * electron renderer process from here and communicate with the other processes
- * through IPC.
- *
- * When running `npm run build` or `npm run build:main`, this file is compiled to
- * `./src/main.js` using webpack. This gives us some performance wins.
- */
 import path from 'path';
 import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import log from 'electron-log';
+import fetch from 'node-fetch';
+import { StockInfo } from '../common/types';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
 
@@ -19,16 +16,80 @@ class AppUpdater {
   constructor() {
     log.transports.file.level = 'info';
     autoUpdater.logger = log;
-    autoUpdater.checkForUpdatesAndNotify();
+    // autoUpdater.checkForUpdatesAndNotify();
   }
 }
 
 let mainWindow: BrowserWindow | null = null;
 
-ipcMain.on('ipc-example', async (event, arg) => {
-  const msgTemplate = (pingPong: string) => `IPC test: ${pingPong}`;
-  console.log(msgTemplate(arg));
-  event.reply('ipc-example', msgTemplate('pong'));
+const fetchStockInfo = async (symbol: string): Promise<StockInfo> => {
+  const stockInfo: StockInfo = { symbol };
+
+  const result = await fetch(`https://finance.yahoo.com/quote/${symbol}`);
+
+  if (result.ok) {
+    const text = await result.text();
+
+    let reg = /"currentPrice":{\S+?}/gm;
+    let match = reg.exec(text);
+    if (match) {
+      console.log(match[0]);
+      stockInfo.currentPrice = (
+        JSON.parse(`{${match[0]}}`) as {
+          currentPrice: { raw: number; fmt: string };
+        }
+      ).currentPrice.raw;
+    }
+
+    reg = /<title>(.+?)\s\(/gm;
+    match = reg.exec(text);
+    if (match) {
+      console.log(match[1]);
+      stockInfo.longName = match[1];
+    }
+
+    reg = /"website":"https:\\u002F\\u002F(\S+?)"/gm;
+    match = reg.exec(text);
+    if (match) {
+      console.log(match[1]);
+      stockInfo.logo_url = `https://logo.clearbit.com/${match[1]}`;
+    }
+
+    reg = /Currency in (\w+)/gm;
+    match = reg.exec(text);
+    if (match) {
+      console.log(match[1]);
+      stockInfo.currency = match[1];
+    }
+
+    reg = /"previousClose":{\S+?}/gm;
+    match = reg.exec(text);
+    if (match) {
+      console.log(match[0]);
+      stockInfo.previousClose = (
+        JSON.parse(`{${match[0]}}`) as {
+          previousClose: { raw: number; fmt: string };
+        }
+      ).previousClose.raw;
+    }
+  }
+
+  return stockInfo;
+};
+
+ipcMain.on('get-symbol', async (event, symbols: string[]) => {
+  console.log('SYMBOLS', symbols);
+  const stockInfo: StockInfo[] = [];
+
+  for (let i = 0; i < symbols.length; i++) {
+    try {
+      stockInfo.push(await fetchStockInfo(symbols[i]));
+    } catch (e) {
+      console.error('ERROR', e);
+    }
+  }
+
+  event.reply('get-symbol', stockInfo);
 });
 
 if (process.env.NODE_ENV === 'production') {

@@ -1,14 +1,14 @@
 import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 
-export type Channels = 'ipc-example';
+export type Channels = 'get-symbol';
 
 contextBridge.exposeInMainWorld('electron', {
   ipcRenderer: {
     sendMessage(channel: Channels, args: unknown[]) {
       ipcRenderer.send(channel, args);
     },
-    on(channel: Channels, func: (...args: unknown[]) => void) {
-      const subscription = (_event: IpcRendererEvent, ...args: unknown[]) =>
+    on(channel: Channels, func: (...args: string[]) => void) {
+      const subscription = (_event: IpcRendererEvent, ...args: string[]) =>
         func(...args);
       ipcRenderer.on(channel, subscription);
 

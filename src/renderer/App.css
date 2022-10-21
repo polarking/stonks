@@ -8,15 +8,15 @@ body {
   height: 100vh;
   background: linear-gradient(
     200.96deg,
-    #fedc2a -29.09%,
-    #dd5789 51.77%,
-    #7a2c9e 129.35%
+    #f3dd70 -29.09%,
+    #e77ca3 51.77%,
+    #bd7fda 129.35%
   );
   font-family: sans-serif;
   overflow-y: hidden;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
 }
 
 button {
@@ -59,4 +59,11 @@ a:hover {
   justify-content: center;
   align-items: center;
   margin: 20px 0;
+}
+
+#root {
+  margin-left: auto;
+  margin-right: auto;
+  width: 40rem;
+  height: 100%;
 }
